@@ -1,0 +1,147 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="capstan_leg">
+
+  <!-- Константы из прошивки ESP32 -->
+  <xacro:property name="E" value="0.065"/>
+  <xacro:property name="C" value="0.100"/>
+  <xacro:property name="D" value="0.150"/>
+  <xacro:property name="H" value="0.054"/>
+
+  <!-- Материалы -->
+  <material name="grey">
+    <color rgba="0.7 0.7 0.7 1.0"/>
+  </material>
+  <material name="blue">
+    <color rgba="0.0 0.0 0.8 1.0"/>
+  </material>
+
+  <!-- БАЗОВОЕ ЗВЕНО (Тело) -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.2 0.1 0.05"/>
+      </geometry>
+      <material name="grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.2 0.1 0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="2.0"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+
+  <!-- МОТОР АБДУКЦИИ (NODE_ID_ABAD = 2) -->
+  <joint name="joint_abad" type="revolute">
+    <parent link="base_link"/>
+    <child link="abad_link"/>
+    <!-- Ось крена (Roll), как в прошивке -->
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <limit lower="-0.523" upper="0.523" effort="100" velocity="10"/>
+  </joint>
+
+  <link name="abad_link">
+    <visual>
+      <geometry>
+        <box size="0.08 0.04 0.04"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- ЛЕВОЕ ПЛЕЧО (NODE_ID_A = 0) -->
+  <joint name="joint_a" type="revolute">
+    <parent link="abad_link"/>
+    <child link="link_a"/>
+    <axis xyz="0 1 0"/>
+    <origin xyz="${-E/2} 0 ${-H}" rpy="0 0 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="10"/>
+  </joint>
+
+  <link name="link_a">
+    <visual>
+      <origin xyz="0 0 ${-C/2}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.01" length="${C}"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <mass value="0.2"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <!-- ПРАВОЕ ПЛЕЧО (NODE_ID_B = 1) -->
+  <joint name="joint_b" type="revolute">
+    <parent link="abad_link"/>
+    <child link="link_b"/>
+    <axis xyz="0 1 0"/>
+    <origin xyz="${E/2} 0 ${-H}" rpy="0 0 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="10"/>
+  </joint>
+
+  <link name="link_b">
+    <visual>
+      <origin xyz="0 0 ${-C/2}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.01" length="${C}"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <mass value="0.2"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <!-- Датчик IMU в Gazebo (Аналог BNO086) -->
+  <gazebo reference="base_link">
+    <sensor name="bno086_imu" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+        <ros>
+          <namespace>/</namespace>
+          <remapping>~/out:=imu/data</remapping>
+        </ros>
+        <frame_name>base_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- Подключение ros2_control для имитации ODrive -->
+  <ros2_control name="ODriveSystem" type="system">
+    <hardware>
+      <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+    </hardware>
+    
+    <joint name="joint_abad">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+    </joint>
+
+    <joint name="joint_a">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+    </joint>
+
+    <joint name="joint_b">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+    </joint>
+  </ros2_control>
+
+  <gazebo>
+    <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
+      <parameters>$(find capstan_leg_sim)/config/controllers.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+</robot>
