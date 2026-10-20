@@ -11,12 +11,12 @@ def generate_launch_description():
     pkg_name = 'capstan_leg_sim'
     pkg_share = get_package_share_directory(pkg_name)
     
-    # ВНИМАНИЕ: Проверьте путь к вашему файлу описания робота!
-    # Если ваш файл называется иначе или лежит в другой папке (например, description/), 
-    # измените 'urdf' и 'robot.urdf.xacro' на ваши реальные значения.
+    # Путь к файлу описания робота. 
+    # ВНИМАНИЕ: Если ваш файл называется не 'robot.urdf.xacro', 
+    # замените имя в конце этой строки на актуальное (например, 'leg.urdf').
     xacro_file = os.path.join(pkg_share, 'urdf', 'robot.urdf.xacro') 
     
-    # 1. Запуск robot_state_publisher (публикует URDF в топик /robot_description)
+    # 1. Запуск robot_state_publisher (собирает URDF и публикует в топик /robot_description)
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -49,12 +49,15 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 4. Мост (Bridge) для синхронизации времени между Gazebo и ROS 2
+    # 4. Мост (Bridge) для синхронизации времени и топиков между Gazebo и ROS 2
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
-            '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'
+            # Синхронизация времени
+            '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+            # Проброс топика IMU из Gazebo в ROS 2
+            '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU'
         ],
         output='screen'
     )
